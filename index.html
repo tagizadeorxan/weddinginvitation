@@ -204,9 +204,20 @@
 </head>
 
 <body>
+  
   <div class="aurora" aria-hidden="true"></div>
 
   <div class="wrap">
+
+
+
+
+         <div >
+    <video src="./wedding_video.mp4" muted
+      playsinline
+      preload="auto"
+      class="auto-video" style="width: 100%;border-radius: 16px; box-shadow: var(--shadow);"></video>
+  </div>
     <header>
       <div class="topRow">
         <div class="badge">
@@ -216,6 +227,8 @@
         <button class="chipBtn" id="addToCalBtn" type="button" title="Təqvimə əlavə et">Təqvim</button>
       </div>
     </header>
+
+ 
 
     <main>
       <section class="hero" id="top" style="position:relative">
@@ -330,6 +343,13 @@
       </div>
     </div>
   </div>
+
+  <audio
+  id="bgAudio"
+  src="./music.mp3"
+  preload="auto"
+  loop
+></audio>
 
   <!-- Supabase JS (CDN) -->
   <script type="module">
@@ -586,5 +606,110 @@ setTimeout(() => {
       }
     });
   </script>
+  <script>
+  // Reveal animation
+  const revealItems = document.querySelectorAll(".reveal");
+  const revealObserver = new IntersectionObserver(
+    entries => {
+      entries.forEach(entry => {
+        if(entry.isIntersecting){
+          entry.target.classList.add("visible");
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.12 }
+  );
+  revealItems.forEach(el => revealObserver.observe(el));
+
+  // Auto play / pause videos on scroll + on page load
+  const videos = document.querySelectorAll(".auto-video");
+
+  function isInViewport(el){
+    const r = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    // ən az 30% görünürsə
+    const visibleH = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+    return visibleH > r.height * 0.3;
+  }
+
+  async function safePlay(video){
+    try{
+      video.muted = true;
+      video.playsInline = true;
+      await video.play();
+    }catch(e){
+      // iOS bəzən blok edir — bu halda scroll edəndə başlayacaq
+    }
+  }
+
+  function tryPlayVisibleVideos(){
+    videos.forEach(v => {
+      if(isInViewport(v)){
+        // səhifə açılan kimi görünürsə -> başlasın
+        v.currentTime = 0;
+        safePlay(v);
+      }
+    });
+  }
+
+  const videoObserver = new IntersectionObserver(
+    entries => {
+      entries.forEach(entry => {
+        const video = entry.target;
+
+        if(entry.isIntersecting){
+          video.currentTime = 0;
+          safePlay(video);
+        }else{
+          video.pause();
+          video.currentTime = 0;
+        }
+      });
+    },
+    {
+      threshold: 0.25,          // 0.6 çox idi
+      rootMargin: "80px 0px"    // bir az əvvəl başlasın
+    }
+  );
+
+  videos.forEach(v => videoObserver.observe(v));
+
+  // Page load / first render fix
+
+
+  // əgər font/layout dəyişib, yenə yoxla
+  window.addEventListener("resize", () => setTimeout(tryPlayVisibleVideos, 150));
+</script>
+<script>
+  const bgAudio = document.getElementById("bgAudio");
+  let audioStarted = false;
+
+  async function startAudioOnce(){
+    if(audioStarted) return;
+    audioStarted = true;
+
+    try{
+      bgAudio.volume = 0.45;
+      await bgAudio.play();
+    }catch(e){
+      // If blocked, allow another attempt on next interaction
+      audioStarted = false;
+    }
+  }
+
+  // Try on ANY first interaction (best coverage for iPhone)
+  ["pointerdown","touchstart","click","keydown","scroll"].forEach(evt => {
+    window.addEventListener(evt, startAudioOnce, { passive:true });
+  });
+
+  // If user comes back to the tab, try again (some iOS cases)
+  document.addEventListener("visibilitychange", () => {
+    if(!document.hidden) startAudioOnce();
+  });
+</script>
+
+
+
 </body>
 </html>
