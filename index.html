@@ -343,10 +343,10 @@ const SUPABASE_ANON_KEY = "sb_publishable_sRbCWLDClaoppgdGZuXA8A_wdqXgg18";
 
     const CONFIG = {
       couple: "Orxan & Səkinə",
-      dateISO: "2026-02-14T19:00:00",
+      dateISO: "2026-02-14T18:00:00",
       dateBadge: "14 Fevral 2026",
       weddingDateText: "14 Fevral 2026",
-      timeText: "19:00",
+      timeText: "18:00",
       venueName: "Romance Palace Deluxe",
       venueAddress: "Romance Palace Deluxe",
       mapsQueryLink: "https://google.com/maps/place/Romance+Palace/@40.4135293,49.9246572,18.1z/data=!4m6!3m5!1s0x403062f1a4e1d37b:0xd517cf695c47f2d5!8m2!3d40.4134838!4d49.9267083!16s%2Fg%2F1pty_sv19?entry=ttu&g_ep=EgoyMDI2MDEwNy4wIKXMDSoKLDEwMDc5MjA2N0gBUAM%3D",
@@ -404,28 +404,32 @@ const SUPABASE_ANON_KEY = "sb_publishable_sRbCWLDClaoppgdGZuXA8A_wdqXgg18";
     }
     tick(); setInterval(tick, 1000);
 
-    // Calendar ICS
-    function makeICS(){
-      const start = new Date(CONFIG.dateISO);
-      const end = new Date(start.getTime() + 4 * 60 * 60 * 1000);
-      const toICSDate = (d) => {
-        const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-        return z.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-      };
-      const uid = "toy-" + Math.random().toString(16).slice(2) + "@invite";
-      return [
-        "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Toy Dəvəti//AZ","CALSCALE:GREGORIAN","METHOD:PUBLISH",
-        "BEGIN:VEVENT",
-        "UID:" + uid,
-        "DTSTAMP:" + toICSDate(new Date()),
-        "DTSTART:" + toICSDate(start),
-        "DTEND:" + toICSDate(end),
-        "SUMMARY:" + CONFIG.couple + " — Toy",
-        "LOCATION:" + (CONFIG.venueName).replace(/,/g, "\\,"),
-        "DESCRIPTION:Toy mərasimi",
-        "END:VEVENT","END:VCALENDAR"
-      ].join("\r\n");
-    }
+function makeICS(){
+  // Bakı vaxtı UTC+4
+  const DTSTART = "20260214T180000";
+  const DTEND   = "20260214T220000"; // +4 saat (istəsən dəyiş)
+
+  const uid = "toy-" + Math.random().toString(16).slice(2) + "@invite";
+
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Toy Dəvəti//AZ",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    "UID:" + uid,
+    "DTSTAMP:20260101T000000Z",
+    "DTSTART;TZID=Asia/Baku:" + DTSTART,
+    "DTEND;TZID=Asia/Baku:" + DTEND,
+    "SUMMARY:" + CONFIG.couple + " — Toy",
+    "LOCATION:" + CONFIG.venueName.replace(/,/g, "\\,"),
+    "DESCRIPTION:Toy mərasimi",
+    "END:VEVENT",
+    "END:VCALENDAR"
+  ].join("\r\n");
+}
+
     $("addToCalBtn").addEventListener("click", () => {
       const blob = new Blob([makeICS()], { type: "text/calendar;charset=utf-8" });
       const url = URL.createObjectURL(blob);
