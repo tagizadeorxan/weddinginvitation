@@ -501,7 +501,7 @@
         </div>
 
         <div class="ctaRow">
-          <button class="btn primary" id="openRsvp" type="button">RSVP</button>
+          <button class="btn primary" id="openRsvp" type="button">Arzu</button>
           <button class="btn ghost" id="scrollToMap" type="button">Xəritə</button>
         </div>
       </section>
@@ -600,7 +600,7 @@
 
    <div class="ctaRow" style="margin-top:12px">
   <button class="btn ghost" id="recordBtn" type="button">🎙️ Səs yaz</button>
- <a class="btn primary" id="sendWishEmail" href="#">📩 Arzunu Email-ə göndər</a>
+<a class="btn primary" id="openGmail" href="#" target="_blank" rel="noopener">📩 Gmail-də aç</a>
 
 </div>
 
@@ -927,6 +927,57 @@ sendWishEmail?.addEventListener("click", (e) => {
       "Email açıldı. Səs yazısı əlavə etmək üçün əvvəl “Səs yaz”, sonra “Səsi yüklə” edib email-ə əlavə edin.";
   }
 });
+
+
+const openGmail = document.getElementById("openGmail");
+const wishStatus = document.getElementById("wishStatus");
+const copyWish = document.getElementById("copyWish");
+
+function getWishText(){
+  const name = document.getElementById("rsvpName").value.trim() || "—";
+  const guests = document.getElementById("rsvpGuests").value.trim() || "—";
+  const note = document.getElementById("rsvpNote").value.trim();
+
+  return (
+`Təbrik mesajı 🎉
+Ad: ${name}
+
+Qeyd:
+${note || "—"}
+
+Tədbir: ${CONFIG.couple} — Toy
+Tarix: ${CONFIG.weddingDateText} • ${document.getElementById("timeText").textContent}
+Məkan: ${CONFIG.venueName}
+Xəritə: ${CONFIG.mapsQueryLink}
+
+Səs yazısı varsa, faylı email-ə əlavə edin.`.trim()
+  );
+}
+
+function buildGmailLink(){
+  const to = encodeURIComponent(CONFIG.WISH_EMAIL);
+  const su = encodeURIComponent("Toy Təbriki — Orxan & Səkinə");
+  const body = encodeURIComponent(getWishText());
+  return `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${su}&body=${body}`;
+}
+
+openGmail.addEventListener("click", (e) => {
+  e.preventDefault();
+  const url = buildGmailLink();
+  openGmail.href = url;
+  wishStatus.textContent = "Gmail açılır… (əgər açılmasa, mətni kopyalayın)";
+  // user click opens in new tab because target=_blank
+});
+
+copyWish?.addEventListener("click", async () => {
+  try{
+    await navigator.clipboard.writeText(getWishText());
+    wishStatus.textContent = `Mətn kopyalandı ✓ İndi Gmail/Email açıb yapışdırın: ${CONFIG.WISH_EMAIL}`;
+  }catch(e){
+    alert("Kopyalama alınmadı. Zəhmət olmasa mətni əl ilə seçib kopyalayın.");
+  }
+});
+
 
 
   // ---- sənin əvvəldən olan “copyRsvp” düyməsi qalırsa, işlətmək istəmirsənsə silə bilərsən ----
