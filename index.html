@@ -699,7 +699,15 @@ setTimeout(() => {
     }
   }
 
-startAudioOnce()
+  // Try on ANY first interaction (best coverage for iPhone)
+  ["pointerdown","touchstart","click","keydown","scroll"].forEach(evt => {
+    window.addEventListener(evt, startAudioOnce, { passive:true });
+  });
+
+  // If user comes back to the tab, try again (some iOS cases)
+  document.addEventListener("visibilitychange", () => {
+    if(!document.hidden) startAudioOnce();
+  });
 </script>
 
 
