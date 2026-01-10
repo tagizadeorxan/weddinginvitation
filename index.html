@@ -690,6 +690,7 @@ setTimeout(() => {
     audioStarted = true;
 
     try{
+      bgAudio.currentTime = 8;
       bgAudio.volume = 0.45;
       await bgAudio.play();
     }catch(e){
