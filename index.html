@@ -368,7 +368,7 @@
 }
 
 .floatHeart::before{
-content:"❤️";
+  content:"❤️";
   position:absolute;
   inset:0;
   display:grid;
@@ -644,8 +644,16 @@ content:"❤️";
       <section class="section" id="schedule">
         <div class="sectionTitle"><span id="scheduleTitle">Proqram</span><span class="spark"></span></div>
         <div class="timeline">
-          <div class="item"><div class="tDot"></div><div class="tMain"><b id="schedGuests">Qonaqların gəlişi</b><small>18:00</small></div></div>
-          <div class="item"><div class="tDot"></div><div class="tMain"><b id="schedCeremony">Mərasim</b><small>19:00</small></div></div>
+          <div class="item"><div class="tDot"></div><div class="tMain"><b id="schedWelcome">Qonaqların qarşılanması</b><small>18:00</small></div></div>
+          <div class="item"><div class="tDot"></div><div class="tMain"><b id="schedWedding">Toy başlayır</b><small>19:00</small></div></div>
+          <div class="item"><div class="tDot"></div><div class="tMain"><b id="schedFirstDance">İlk rəqs - gəlin və bəy</b><small>19:15</small></div></div>
+          <div class="item"><div class="tDot"></div><div class="tMain"><b id="schedNational">Xalq musiqisi və rəqslər</b><small>19:00-20:00</small></div></div>
+          <div class="item"><div class="tDot"></div><div class="tMain"><b id="schedSpecial">Xüsusi təqdimat mahnıları</b><small>20:00-20:10</small></div></div>
+          <div class="item"><div class="tDot"></div><div class="tMain"><b id="schedRelatives">Qohumların mahnısı</b><small>20:30</small></div></div>
+          <div class="item"><div class="tDot"></div><div class="tMain"><b id="schedSaxophone">Saksafon ansamblı</b><small>20:35</small></div></div>
+          <div class="item"><div class="tDot"></div><div class="tMain"><b id="schedPilaw">Plov şousu</b><small>21:00</small></div></div>
+          <div class="item"><div class="tDot"></div><div class="tMain"><b id="schedCake">Tort və gəlin-bəy rəqsi</b><small>21:30</small></div></div>
+          <div class="item"><div class="tDot"></div><div class="tMain"><b id="schedDisco">Disko</b><small>22:00</small></div></div>
         </div>
       </section>
 
@@ -758,8 +766,16 @@ content:"❤️";
         cdSeconds: "San",
 
         scheduleTitle: "Proqram",
-        schedGuests: "Qonaqların gəlişi",
-        schedCeremony: "Mərasim",
+        schedWelcome: "Qonaqların qarşılanması",
+        schedWedding: "Toy başlayır",
+        schedFirstDance: "İlk rəqs - gəlin və bəy",
+        schedNational: "Xalq musiqisi və rəqslər",
+        schedSpecial: "Xüsusi təqdimat mahnıları",
+        schedRelatives: "Qohumların mahnısı",
+        schedSaxophone: "Saksafon ansamblı",
+        schedPilaw: "Plov şousu",
+        schedCake: "Tort və gəlin-bəy rəqsi",
+        schedDisco: "Disko",
 
         addressTitle: "Ünvan",
         mapTitle: "Xəritə",
@@ -829,8 +845,16 @@ content:"❤️";
         cdSeconds: "Sec",
 
         scheduleTitle: "Schedule",
-        schedGuests: "Guests arrival",
-        schedCeremony: "Ceremony",
+        schedWelcome: "Welcome guests",
+        schedWedding: "Wedding starts",
+        schedFirstDance: "First dance - bride and groom",
+        schedNational: "National music and dances",
+        schedSpecial: "Special present songs",
+        schedRelatives: "Song by relatives",
+        schedSaxophone: "Saxophone band",
+        schedPilaw: "Pilaw show",
+        schedCake: "Cake and bride-groom dance",
+        schedDisco: "Disco",
 
         addressTitle: "Address",
         mapTitle: "Map",
@@ -944,8 +968,16 @@ content:"❤️";
       $("cdLabelSeconds").textContent = t.cdSeconds;
 
       $("scheduleTitle").textContent = t.scheduleTitle;
-      $("schedGuests").textContent = t.schedGuests;
-      $("schedCeremony").textContent = t.schedCeremony;
+      $("schedWelcome").textContent = t.schedWelcome;
+      $("schedWedding").textContent = t.schedWedding;
+      $("schedFirstDance").textContent = t.schedFirstDance;
+      $("schedNational").textContent = t.schedNational;
+      $("schedSpecial").textContent = t.schedSpecial;
+      $("schedRelatives").textContent = t.schedRelatives;
+      $("schedSaxophone").textContent = t.schedSaxophone;
+      $("schedPilaw").textContent = t.schedPilaw;
+      $("schedCake").textContent = t.schedCake;
+      $("schedDisco").textContent = t.schedDisco;
 
       $("addressTitle").textContent = t.addressTitle;
       $("mapFrame").title = t.mapTitle;
@@ -1087,7 +1119,15 @@ content:"❤️";
     // Modal open/close
     const modalBack = $("modalBack");
     const openModal = () => modalBack.classList.add("show");
-    const closeModal = () => modalBack.classList.remove("show");
+    const closeModal = () => {
+      modalBack.classList.remove("show");
+      // Resume background music if it was paused for recording and recording is not active
+      const bgAudio = document.getElementById("bgAudio");
+      if(bgAudio && bgAudioWasPlaying && recordBtn.dataset.state !== "recording"){
+        bgAudio.play().catch(() => {}); // Ignore errors if play fails
+        bgAudioWasPlaying = false; // Reset flag after resuming
+      }
+    };
     $("openWish").addEventListener("click", openModal);
     $("closeWish").addEventListener("click", closeModal);
     modalBack.addEventListener("click", (e) => { if(e.target === modalBack) closeModal(); });
@@ -1098,6 +1138,7 @@ content:"❤️";
     let audioBlob = null;
     let audioUrl = null;
     const audioEl = new Audio();
+    let bgAudioWasPlaying = false;
 
     const recordBtn = $("recordBtn");
     const playBtn = $("playBtn");
@@ -1140,6 +1181,15 @@ content:"❤️";
       playBtn.disabled = true;
       uploadBtn.disabled = true;
 
+      // Pause background music when recording starts
+      const bgAudio = document.getElementById("bgAudio");
+      if(bgAudio && !bgAudio.paused){
+        bgAudioWasPlaying = true;
+        bgAudio.pause();
+      } else {
+        bgAudioWasPlaying = false;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorder = new MediaRecorder(stream);
 
@@ -1173,6 +1223,13 @@ content:"❤️";
       if(mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
       recordBtn.textContent = I18N[currentLang].recordBtnRedo;
       recordBtn.dataset.state = "stopped";
+      
+      // Resume background music if it was playing before recording
+      const bgAudio = document.getElementById("bgAudio");
+      if(bgAudio && bgAudioWasPlaying){
+        bgAudio.play().catch(() => {}); // Ignore errors if play fails
+        bgAudioWasPlaying = false; // Reset flag after resuming
+      }
     }
 
     recordBtn.addEventListener("click", async () => {
@@ -1186,8 +1243,27 @@ content:"❤️";
 
     playBtn.addEventListener("click", () => {
       if(!audioUrl) return;
+      
+      // Pause background music when playing recorded audio
+      const bgAudio = document.getElementById("bgAudio");
+      if(bgAudio && !bgAudio.paused){
+        bgAudioWasPlaying = true;
+        bgAudio.pause();
+      } else {
+        bgAudioWasPlaying = false;
+      }
+      
       audioEl.currentTime = 0;
       audioEl.play();
+    });
+    
+    // Resume background music when recorded audio playback ends
+    audioEl.addEventListener("ended", () => {
+      const bgAudio = document.getElementById("bgAudio");
+      if(bgAudio && bgAudioWasPlaying){
+        bgAudio.play().catch(() => {}); // Ignore errors if play fails
+        bgAudioWasPlaying = false; // Reset flag after resuming
+      }
     });
 
     uploadBtn.addEventListener("click", async () => {
