@@ -1737,6 +1737,171 @@
     })();
   </script>
 
+  <!-- COMPLETELY STANDALONE Audio Recorder (works even if module fails) -->
+  <script>
+    (function() {
+      'use strict';
+      
+      let mediaRecorder = null;
+      let audioChunks = [];
+      let audioBlob = null;
+      let audioUrl = null;
+      let audioMimeType = "audio/webm";
+      let bgAudioWasPlaying = false;
+      
+      function initAudioRecorder() {
+        const recordBtn = document.getElementById("recordBtn");
+        const playBtn = document.getElementById("playBtn");
+        const uploadBtn = document.getElementById("uploadBtn");
+        const wishHint = document.getElementById("wishHint");
+        
+        if(!recordBtn) {
+          setTimeout(initAudioRecorder, 500);
+          return;
+        }
+        
+        if(recordBtn.dataset.standaloneAttached === "true") {
+          return;
+        }
+        recordBtn.dataset.standaloneAttached = "true";
+        
+        const newRecordBtn = recordBtn.cloneNode(true);
+        recordBtn.parentNode.replaceChild(newRecordBtn, recordBtn);
+        
+        async function startRecording() {
+          try {
+            audioChunks = [];
+            audioBlob = null;
+            audioMimeType = "audio/webm";
+            window.audioBlobForUpload = null;
+            if(audioUrl) URL.revokeObjectURL(audioUrl);
+            audioUrl = null;
+            
+            if(playBtn) playBtn.disabled = true;
+            if(uploadBtn) uploadBtn.disabled = true;
+            
+            // Pause background music
+            const bgAudio = document.getElementById("bgAudio");
+            if(bgAudio && !bgAudio.paused) {
+              bgAudioWasPlaying = true;
+              bgAudio.pause();
+            } else {
+              bgAudioWasPlaying = false;
+            }
+            
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Detect supported MIME type (iPhone Safari compatibility)
+            let mimeType = "audio/webm";
+            const types = ["audio/webm", "audio/webm;codecs=opus", "audio/mp4", "audio/mpeg"];
+            for(const type of types) {
+              if(MediaRecorder.isTypeSupported(type)) {
+                mimeType = type;
+                break;
+              }
+            }
+            
+            if(!MediaRecorder.isTypeSupported(mimeType)) {
+              mimeType = "";
+            }
+            
+            const options = mimeType ? { mimeType } : {};
+            mediaRecorder = new MediaRecorder(stream, options);
+            
+            mediaRecorder.ondataavailable = (e) => {
+              if(e.data && e.data.size > 0) {
+                audioChunks.push(e.data);
+              }
+            };
+            
+            mediaRecorder.onstop = () => {
+              stream.getTracks().forEach(t => t.stop());
+              
+              audioMimeType = mediaRecorder.mimeType || mimeType || "audio/webm";
+              audioBlob = new Blob(audioChunks, { type: audioMimeType });
+              
+              window.audioBlobForUpload = audioBlob;
+              window.audioMimeTypeForUpload = audioMimeType;
+              
+              if(!audioBlob || audioBlob.size === 0) {
+                if(wishHint) wishHint.textContent = "Yazma uğursuz oldu. Zəhmət olmasa yenidən cəhd edin.";
+                if(playBtn) playBtn.disabled = true;
+                if(uploadBtn) uploadBtn.disabled = true;
+                window.audioBlobForUpload = null;
+                return;
+              }
+              
+              audioUrl = URL.createObjectURL(audioBlob);
+              const audioEl = new Audio();
+              audioEl.src = audioUrl;
+              
+              if(playBtn) playBtn.disabled = false;
+              if(uploadBtn) uploadBtn.disabled = false;
+              if(wishHint) wishHint.innerHTML = "Səs hazırdır ✅ İndi <b>Göndər</b> basın.";
+              
+              // Play button handler
+              if(playBtn) {
+                const newPlayBtn = playBtn.cloneNode(true);
+                playBtn.parentNode.replaceChild(newPlayBtn, playBtn);
+                newPlayBtn.addEventListener("click", function() {
+                  if(audioUrl) {
+                    audioEl.currentTime = 0;
+                    audioEl.play();
+                  }
+                });
+              }
+            };
+            
+            mediaRecorder.start();
+            newRecordBtn.textContent = "⏹️ Dayandır";
+            newRecordBtn.dataset.state = "recording";
+            if(wishHint) wishHint.textContent = "Yazılır… Dayandırmaq üçün yenə basın.";
+            
+          } catch(e) {
+            console.error("Recording error:", e);
+            alert("Mikrofona icazə verilməlidir.");
+            if(wishHint) wishHint.textContent = "Mikrofona icazə verilməlidir.";
+          }
+        }
+        
+        function stopRecording() {
+          if(mediaRecorder && mediaRecorder.state !== "inactive") {
+            mediaRecorder.stop();
+          }
+          newRecordBtn.textContent = "🎙️ Yenidən yaz";
+          newRecordBtn.dataset.state = "stopped";
+          
+          // Resume background music
+          const bgAudio = document.getElementById("bgAudio");
+          if(bgAudio && bgAudioWasPlaying) {
+            bgAudio.play().catch(() => {});
+            bgAudioWasPlaying = false;
+          }
+        }
+        
+        newRecordBtn.addEventListener("click", async function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          if(newRecordBtn.dataset.state === "recording") {
+            stopRecording();
+          } else {
+            await startRecording();
+          }
+        });
+      }
+      
+      // Try multiple times
+      setTimeout(initAudioRecorder, 1000);
+      setTimeout(initAudioRecorder, 2000);
+      if(document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          setTimeout(initAudioRecorder, 500);
+        });
+      }
+    })();
+  </script>
+
   <script>
     // Auto play / pause videos on scroll + on page load
     const videos = document.querySelectorAll(".auto-video");
