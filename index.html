@@ -717,6 +717,9 @@
     const SUPABASE_URL = "https://unyfljfhkjjidzdobwjr.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_sRbCWLDClaoppgdGZuXA8A_wdqXgg18";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Expose supabase for debugging/fallback
+    window.supabaseClient = supabase;
 
     const CONFIG = {
       couple: "Orxan & Səkinə",
@@ -1046,97 +1049,17 @@
       }
     });
 
-    // Countdown - iPhone compatible version
-    const pad2 = (n) => String(n).padStart(2, "0");
+    // Expose date for countdown (accessible outside module)
+    window.WEDDING_DATE_ISO = CONFIG.dateISO;
+    window.MODULE_LOADED = true;
     
-    function parseDateForCountdown(dateStr) {
-      // Parse "2026-02-14T18:00:00" as local time (not UTC)
-      const parts = dateStr.split(/[-T:]/);
-      if(parts.length >= 3) {
-        // Create date in local timezone
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1; // 0-indexed
-        const day = parseInt(parts[2], 10);
-        const hour = parseInt(parts[3] || 0, 10);
-        const minute = parseInt(parts[4] || 0, 10);
-        const second = parseInt(parts[5] || 0, 10);
-        
-        return new Date(year, month, day, hour, minute, second);
+    // Verify upload button exists and is accessible
+    setTimeout(function() {
+      const uploadBtn = document.getElementById("uploadBtn");
+      if(uploadBtn && !uploadBtn.onclick) {
+        console.log("Upload button found, module loaded successfully");
       }
-      // Fallback to standard parsing
-      return new Date(dateStr);
-    }
-    
-    let target = null;
-    let countdownInterval = null;
-    
-    try {
-      const targetDate = parseDateForCountdown(CONFIG.dateISO);
-      target = targetDate.getTime();
-      
-      if(isNaN(target)) {
-        throw new Error("Invalid date");
-      }
-    } catch(e) {
-      console.error("Countdown date parsing error:", e);
-      // Set a fallback date
-      target = new Date(2026, 1, 14, 18, 0, 0).getTime(); // Feb 14, 2026 18:00 local time
-    }
-    
-    function tick(){
-      try {
-        const now = Date.now();
-        let diff = Math.max(0, target - now);
-
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        diff -= days * (1000 * 60 * 60 * 24);
-
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        diff -= hours * (1000 * 60 * 60);
-
-        const minutes = Math.floor(diff / (1000 * 60));
-        diff -= minutes * (1000 * 60);
-
-        const seconds = Math.floor(diff / 1000);
-
-        const daysEl = document.getElementById("cdDays");
-        const hoursEl = document.getElementById("cdHours");
-        const minutesEl = document.getElementById("cdMinutes");
-        const secondsEl = document.getElementById("cdSeconds");
-        
-        if(daysEl) daysEl.textContent = days;
-        if(hoursEl) hoursEl.textContent = pad2(hours);
-        if(minutesEl) minutesEl.textContent = pad2(minutes);
-        if(secondsEl) secondsEl.textContent = pad2(seconds);
-
-        if(target - now <= 0){
-          const t = I18N[currentLang];
-          const subEl = document.getElementById("countdownSub");
-          if(subEl) subEl.textContent = t.countdownDone;
-          if(countdownInterval) {
-            clearInterval(countdownInterval);
-          }
-        }
-      } catch(e) {
-        console.error("Countdown tick error:", e);
-      }
-    }
-    
-    // Start countdown
-    if(target && !isNaN(target)){
-      tick(); // Run immediately
-      countdownInterval = setInterval(tick, 1000);
-    } else {
-      console.error("Invalid target date for countdown");
-      const daysEl = document.getElementById("cdDays");
-      const hoursEl = document.getElementById("cdHours");
-      const minutesEl = document.getElementById("cdMinutes");
-      const secondsEl = document.getElementById("cdSeconds");
-      if(daysEl) daysEl.textContent = "—";
-      if(hoursEl) hoursEl.textContent = "—";
-      if(minutesEl) minutesEl.textContent = "—";
-      if(secondsEl) secondsEl.textContent = "—";
-    }
+    }, 1000);
 
     // Calendar (.ics)
     function makeICS(){
@@ -1368,8 +1291,21 @@
     });
 
     // Ensure upload button exists before attaching listener
-    if(uploadBtn) {
-      uploadBtn.addEventListener("click", async (e) => {
+    function attachUploadListener() {
+      const uploadBtnEl = document.getElementById("uploadBtn");
+      if(!uploadBtnEl) {
+        console.error("Upload button not found, retrying...");
+        setTimeout(attachUploadListener, 500);
+        return;
+      }
+      
+      // Check if already attached
+      if(uploadBtnEl.dataset.listenerAttached === "true") {
+        return;
+      }
+      uploadBtnEl.dataset.listenerAttached = "true";
+      
+      uploadBtnEl.addEventListener("click", async (e) => {
         e.preventDefault();
         e.stopPropagation();
         
@@ -1389,8 +1325,12 @@
             return;
           }
 
+          const uploadBtn = document.getElementById("uploadBtn");
+          if(!uploadBtn) return;
+          
           uploadBtn.disabled = true;
           uploadBtn.textContent = t.uploading;
+          const wishHint = document.getElementById("wishHint");
           if(wishHint) wishHint.textContent = t.hintUploading;
 
           // Check if Supabase client is initialized
@@ -1425,9 +1365,13 @@
             throw new Error("No data returned from upload");
           }
 
-          if(wishHint) wishHint.innerHTML = t.sent;
-          uploadBtn.textContent = t.sentBtn;
-          uploadBtn.disabled = true;
+          const uploadBtnFinal = document.getElementById("uploadBtn");
+          const wishHintFinal = document.getElementById("wishHint");
+          if(wishHintFinal) wishHintFinal.innerHTML = t.sent;
+          if(uploadBtnFinal) {
+            uploadBtnFinal.textContent = t.sentBtn;
+            uploadBtnFinal.disabled = true;
+          }
 
           setTimeout(() => { closeModal(); }, 1000);
 
@@ -1449,14 +1393,110 @@
               : "İcazə rədd edildi. Zəhmət olmasa dəstək ilə əlaqə saxlayın.";
           }
           
-          if(wishHint) wishHint.textContent = userMessage;
-          uploadBtn.textContent = t.uploadBtn;
-          uploadBtn.disabled = false;
+          const uploadBtnErr = document.getElementById("uploadBtn");
+          const wishHintErr = document.getElementById("wishHint");
+          if(wishHintErr) wishHintErr.textContent = userMessage;
+          if(uploadBtnErr) {
+            uploadBtnErr.textContent = t.uploadBtn;
+            uploadBtnErr.disabled = false;
+          }
         }
       });
-    } else {
-      console.error("Upload button not found");
     }
+    
+    // Try to attach immediately, then retry if needed
+    if(document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', attachUploadListener);
+    } else {
+      attachUploadListener();
+    }
+  </script>
+
+  <!-- Standalone Countdown Script (iPhone compatible, non-module) -->
+  <script>
+    (function() {
+      'use strict';
+      
+      function initCountdown() {
+        const dateISO = window.WEDDING_DATE_ISO || "2026-02-14T18:00:00";
+        
+        function pad2(n) {
+          return String(n).padStart(2, "0");
+        }
+        
+        function parseDate(dateStr) {
+          const parts = dateStr.split(/[-T:]/);
+          if(parts.length >= 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const day = parseInt(parts[2], 10);
+            const hour = parseInt(parts[3] || 0, 10);
+            const minute = parseInt(parts[4] || 0, 10);
+            const second = parseInt(parts[5] || 0, 10);
+            return new Date(year, month, day, hour, minute, second);
+          }
+          return new Date(dateStr);
+        }
+        
+        const targetDate = parseDate(dateISO);
+        const target = targetDate.getTime();
+        
+        if(isNaN(target)) {
+          console.error("Invalid countdown date");
+          return;
+        }
+        
+        const daysEl = document.getElementById("cdDays");
+        const hoursEl = document.getElementById("cdHours");
+        const minutesEl = document.getElementById("cdMinutes");
+        const secondsEl = document.getElementById("cdSeconds");
+        
+        if(!daysEl || !hoursEl || !minutesEl || !secondsEl) {
+          console.error("Countdown elements not found");
+          return;
+        }
+        
+        function tick() {
+          const now = Date.now();
+          let diff = Math.max(0, target - now);
+          
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          diff -= days * (1000 * 60 * 60 * 24);
+          
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          diff -= hours * (1000 * 60 * 60);
+          
+          const minutes = Math.floor(diff / (1000 * 60));
+          diff -= minutes * (1000 * 60);
+          
+          const seconds = Math.floor(diff / 1000);
+          
+          daysEl.textContent = days;
+          hoursEl.textContent = pad2(hours);
+          minutesEl.textContent = pad2(minutes);
+          secondsEl.textContent = pad2(seconds);
+          
+          if(target - now <= 0) {
+            const subEl = document.getElementById("countdownSub");
+            if(subEl) {
+              const lang = localStorage.getItem("invite_lang") || "az";
+              subEl.textContent = lang === "en" 
+                ? "Today is your day 💫" 
+                : "Bu gün sizin gününüzdür 💫";
+            }
+          }
+        }
+        
+        tick();
+        setInterval(tick, 1000);
+      }
+      
+      if(document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCountdown);
+      } else {
+        initCountdown();
+      }
+    })();
   </script>
 
   <script>
