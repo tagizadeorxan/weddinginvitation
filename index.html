@@ -1053,6 +1053,13 @@
     window.WEDDING_DATE_ISO = CONFIG.dateISO;
     window.MODULE_LOADED = true;
     
+    // Expose language functions for standalone script
+    window.WEDDING_I18N = I18N;
+    window.WEDDING_APPLY_LANG = applyLang;
+    window.WEDDING_CURRENT_LANG = () => currentLang;
+    window.WEDDING_SET_LANG = (lang) => { currentLang = lang; };
+    window.WEDDING_CONFIG = CONFIG;
+    
     // Verify upload button exists and is accessible
     setTimeout(function() {
       const uploadBtn = document.getElementById("uploadBtn");
@@ -1157,6 +1164,7 @@
       audioChunks = [];
       audioBlob = null;
       audioMimeType = "audio/webm"; // Reset MIME type
+      window.audioBlobForUpload = null; // Clear exposed blob
       if(audioUrl) URL.revokeObjectURL(audioUrl);
       audioUrl = null;
 
@@ -1206,6 +1214,10 @@
         audioMimeType = mediaRecorder.mimeType || mimeType || "audio/webm";
         audioBlob = new Blob(audioChunks, { type: audioMimeType });
         
+        // Expose to window for standalone upload script
+        window.audioBlobForUpload = audioBlob;
+        window.audioMimeTypeForUpload = audioMimeType;
+        
         // Validate blob was created
         if(!audioBlob || audioBlob.size === 0){
           const t = I18N[currentLang];
@@ -1214,6 +1226,7 @@
             : "Yazma uğursuz oldu. Zəhmət olmasa yenidən cəhd edin.";
           playBtn.disabled = true;
           uploadBtn.disabled = true;
+          window.audioBlobForUpload = null;
           return;
         }
         
@@ -1510,6 +1523,183 @@
       }
       
       tryInit();
+    })();
+  </script>
+
+  <!-- Standalone Language Switcher (iPhone compatible, non-module) -->
+  <script>
+    (function() {
+      'use strict';
+      
+      function initLanguageSwitcher() {
+        const langAzBtn = document.getElementById("langAz");
+        const langEnBtn = document.getElementById("langEn");
+        
+        if(!langAzBtn || !langEnBtn) {
+          setTimeout(initLanguageSwitcher, 500);
+          return;
+        }
+        
+        // Check if module loaded and use its function, otherwise use fallback
+        function switchLang(lang) {
+          if(window.WEDDING_APPLY_LANG) {
+            // Module loaded, use it
+            try {
+              window.WEDDING_APPLY_LANG(lang);
+            } catch(e) {
+              console.error("Language switch error:", e);
+              // Fallback to reload
+              const LANG_KEY = "invite_lang";
+              localStorage.setItem(LANG_KEY, lang);
+              location.reload();
+            }
+          } else {
+            // Module not loaded yet, wait a bit and retry
+            setTimeout(function() {
+              if(window.WEDDING_APPLY_LANG) {
+                window.WEDDING_APPLY_LANG(lang);
+              } else {
+                // Still not loaded, use fallback
+                const LANG_KEY = "invite_lang";
+                localStorage.setItem(LANG_KEY, lang);
+                location.reload();
+              }
+            }, 500);
+          }
+        }
+        
+        langAzBtn.addEventListener("click", function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          switchLang("az");
+        });
+        
+        langEnBtn.addEventListener("click", function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          switchLang("en");
+        });
+      }
+      
+      if(document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initLanguageSwitcher);
+      } else {
+        initLanguageSwitcher();
+      }
+    })();
+  </script>
+
+  <!-- Standalone Upload Button Handler (iPhone compatible) -->
+  <script>
+    (function() {
+      'use strict';
+      
+      // Wait for module to expose variables, then attach upload handler
+      function initUploadButton() {
+        // Check if module loaded
+        if(!window.supabaseClient) {
+          // Module not loaded yet, retry
+          setTimeout(initUploadButton, 500);
+          return;
+        }
+        
+        const uploadBtn = document.getElementById("uploadBtn");
+        if(!uploadBtn) {
+          setTimeout(initUploadButton, 500);
+          return;
+        }
+        
+        // Check if already attached
+        if(uploadBtn.dataset.standaloneAttached === "true") {
+          return;
+        }
+        uploadBtn.dataset.standaloneAttached = "true";
+        
+        uploadBtn.addEventListener("click", async function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Access variables from module scope via window
+          const supabase = window.supabaseClient;
+          const CONFIG = window.WEDDING_CONFIG || { bucket: "wishes" };
+          
+          // Get audio blob from module scope (we'll need to expose this too)
+          // For now, try to get it from the module's scope
+          if(!window.audioBlobForUpload) {
+            alert("Please record audio first");
+            return;
+          }
+          
+          const audioBlob = window.audioBlobForUpload;
+          const audioMimeType = window.audioMimeTypeForUpload || "audio/webm";
+          
+          if(!audioBlob || audioBlob.size === 0) {
+            alert("Audio file is empty. Please record again.");
+            return;
+          }
+          
+          uploadBtn.disabled = true;
+          const originalText = uploadBtn.textContent;
+          uploadBtn.textContent = "⬆️ Göndərilir…";
+          
+          const wishHint = document.getElementById("wishHint");
+          if(wishHint) wishHint.textContent = "Yüklənir… zəhmət olmasa gözləyin.";
+          
+          try {
+            const meta = {
+              name: document.getElementById("wishName")?.value.trim() || "—",
+              note: document.getElementById("wishNote")?.value.trim() || "",
+              createdAt: new Date().toISOString(),
+              couple: "Orxan & Səkinə",
+              weddingDate: "14 Fevral 2026",
+              venue: "Romance Palace Deluxe",
+              lang: localStorage.getItem("invite_lang") || "az"
+            };
+            
+            let fileExt = "webm";
+            if(audioMimeType.includes("mp4")) fileExt = "m4a";
+            else if(audioMimeType.includes("mpeg")) fileExt = "mp3";
+            
+            const path = `wishes/${new Date().toISOString().slice(0,10)}/${Date.now()}-${meta.name.replace(/[^a-z0-9]/gi, "-").toLowerCase()}.${fileExt}`;
+            
+            const { data, error } = await supabase.storage
+              .from(CONFIG.bucket)
+              .upload(path, audioBlob, {
+                contentType: audioMimeType || audioBlob.type || "audio/webm",
+                upsert: false,
+                cacheControl: "3600",
+                metadata: meta
+              });
+            
+            if(error) throw error;
+            if(!data) throw new Error("No data returned");
+            
+            if(wishHint) wishHint.innerHTML = "<span style='color: rgba(245,210,124,.95); font-weight:800;'>GÖNDƏRİLDİ ✓</span> Çox sağ olun! 💛";
+            uploadBtn.textContent = "✅ Göndərildi";
+            uploadBtn.disabled = true;
+            
+            setTimeout(function() {
+              const modal = document.getElementById("modalBack");
+              if(modal) modal.classList.remove("show");
+            }, 1000);
+            
+          } catch(err) {
+            console.error("Upload error:", err);
+            alert("Göndərmək alınmadı. İnterneti yoxlayın və yenidən cəhd edin.");
+            uploadBtn.textContent = originalText;
+            uploadBtn.disabled = false;
+          }
+        });
+      }
+      
+      // Start checking after a delay to let module load
+      setTimeout(initUploadButton, 1000);
+      // Also try on DOM ready
+      if(document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          setTimeout(initUploadButton, 500);
+        });
+      }
     })();
   </script>
 
