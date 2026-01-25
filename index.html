@@ -1663,6 +1663,80 @@
     })();
   </script>
 
+  <!-- COMPLETELY STANDALONE Modal Opener (works even if module fails) -->
+  <script>
+    (function() {
+      'use strict';
+      
+      function initModalOpener() {
+        const openWishBtn = document.getElementById("openWish");
+        const modalBack = document.getElementById("modalBack");
+        const closeWishBtn = document.getElementById("closeWish");
+        
+        if(!openWishBtn || !modalBack) {
+          setTimeout(initModalOpener, 500);
+          return;
+        }
+        
+        // Remove any existing listeners by cloning
+        if(openWishBtn.dataset.standaloneAttached === "true") {
+          return;
+        }
+        openWishBtn.dataset.standaloneAttached = "true";
+        
+        const newBtn = openWishBtn.cloneNode(true);
+        openWishBtn.parentNode.replaceChild(newBtn, openWishBtn);
+        
+        function openModal() {
+          if(modalBack) {
+            modalBack.classList.add("show");
+          }
+        }
+        
+        function closeModal() {
+          if(modalBack) {
+            modalBack.classList.remove("show");
+          }
+        }
+        
+        newBtn.addEventListener("click", function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          openModal();
+        });
+        
+        // Close button
+        if(closeWishBtn) {
+          const newCloseBtn = closeWishBtn.cloneNode(true);
+          closeWishBtn.parentNode.replaceChild(newCloseBtn, closeWishBtn);
+          newCloseBtn.addEventListener("click", function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeModal();
+          });
+        }
+        
+        // Close on backdrop click
+        modalBack.addEventListener("click", function(e) {
+          if(e.target === modalBack) {
+            closeModal();
+          }
+        });
+      }
+      
+      // Try multiple times
+      if(document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          setTimeout(initModalOpener, 100);
+          setTimeout(initModalOpener, 500);
+        });
+      } else {
+        setTimeout(initModalOpener, 100);
+        setTimeout(initModalOpener, 500);
+      }
+    })();
+  </script>
+
   <script>
     // Auto play / pause videos on scroll + on page load
     const videos = document.querySelectorAll(".auto-video");
