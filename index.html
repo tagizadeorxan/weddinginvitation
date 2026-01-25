@@ -1418,6 +1418,7 @@
       'use strict';
       
       function initCountdown() {
+        // Hardcoded date - works independently of module script
         const dateISO = window.WEDDING_DATE_ISO || "2026-02-14T18:00:00";
         
         function pad2(n) {
@@ -1452,7 +1453,8 @@
         const secondsEl = document.getElementById("cdSeconds");
         
         if(!daysEl || !hoursEl || !minutesEl || !secondsEl) {
-          console.error("Countdown elements not found");
+          console.error("Countdown elements not found, retrying...");
+          setTimeout(initCountdown, 500);
           return;
         }
         
@@ -1491,11 +1493,23 @@
         setInterval(tick, 1000);
       }
       
-      if(document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initCountdown);
-      } else {
-        initCountdown();
+      // Try multiple times to ensure it works on slow devices
+      function tryInit() {
+        if(document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', initCountdown);
+        } else {
+          initCountdown();
+        }
+        // Also try after a delay as backup
+        setTimeout(function() {
+          const daysEl = document.getElementById("cdDays");
+          if(daysEl && daysEl.textContent === "—") {
+            initCountdown();
+          }
+        }, 1000);
       }
+      
+      tryInit();
     })();
   </script>
 
