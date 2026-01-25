@@ -1546,7 +1546,122 @@
     })();
   </script>
 
+  <!-- COMPLETELY STANDALONE Language Switcher (works even if module fails) -->
+  <script>
+    (function() {
+      'use strict';
+      const I18N_STANDALONE = {
+        az: {dateBadge:"14 Fevral 2026",weddingDateText:"14 Fevral 2026",kickerTitle:"Toy Dəvəti",heroSub:"Sevinc dolu qəlblə sizi bizim ən xoş günümüzü birlikdə qeyd etməyə dəvət edirik — sevgi və unudulmaz anlarla dolu bir axşam ✨",labelDate:"Tarix",labelVenue:"Məkan",labelTime:"Saat",openWish:"Arzu göndər",mapBtn:"Xəritə",countdownTitle:"Geri sayım",countdownSub:"Sizinlə birgə qeyd etməyi səbirsizliklə gözləyirik 💛",scheduleTitle:"Proqram",schedWelcome:"Qonaqların qarşılanması",schedWedding:"Toyun başlaması",schedFirstDance:"İlk rəqs",schedNational:"Xalq musiqiləri",schedSpecial:"Xüsusi təqdimat mahnıları",schedSaxophone:"Saksafon Band",schedPilaw:"Aş təqdimatı",schedCake:"Tort",schedDisco:"Disko",addressTitle:"Ünvan",copyAddress:"Ünvanı kopyala",direction:"İstiqamət",footerTitle:"Sevgi ilə",footerSub:"Sizinlə birgə olmağımız bizim üçün çox dəyərlidir 💛"},
+        en: {dateBadge:"February 14, 2026",weddingDateText:"February 14, 2026",kickerTitle:"Wedding Invitation",heroSub:"With joyful hearts, we invite you to celebrate our special day with us — an evening filled with love and unforgettable moments ✨",labelDate:"Date",labelVenue:"Venue",labelTime:"Time",openWish:"Send a wish",mapBtn:"Map",countdownTitle:"Countdown",countdownSub:"We can't wait to celebrate together 💛",scheduleTitle:"Schedule",schedWelcome:"Welcome guests",schedWedding:"Wedding starts",schedFirstDance:"First dance",schedNational:"National music",schedSpecial:"Special present songs",schedSaxophone:"Saxophone band",schedPilaw:"Pilaw show",schedCake:"Cake and bride-groom dance",schedDisco:"Disco",addressTitle:"Address",copyAddress:"Copy address",direction:"Directions",footerTitle:"With love",footerSub:"Your presence means a lot to us 💛"}
+      };
+      function applyLangStandalone(lang) {
+        localStorage.setItem("invite_lang", lang);
+        const t = I18N_STANDALONE[lang] || I18N_STANDALONE.az;
+        const langAz = document.getElementById("langAz");
+        const langEn = document.getElementById("langEn");
+        if(langAz) langAz.setAttribute("aria-pressed", lang === "az" ? "true" : "false");
+        if(langEn) langEn.setAttribute("aria-pressed", lang === "en" ? "true" : "false");
+        document.documentElement.setAttribute("lang", lang);
+        document.title = lang === "en" ? "Orkhan & Sakina — Wedding Invitation 💍" : "Orxan & Səkinə — Toy Dəvəti 💍";
+        const updateText = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
+        updateText("dateBadge", t.dateBadge); updateText("weddingDateText", t.weddingDateText); updateText("kickerTitle", t.kickerTitle); updateText("heroSub", t.heroSub);
+        updateText("labelDate", t.labelDate); updateText("labelVenue", t.labelVenue); updateText("labelTime", t.labelTime); updateText("openWish", t.openWish);
+        updateText("scrollToMap", t.mapBtn); updateText("countdownTitle", t.countdownTitle); updateText("countdownSub", t.countdownSub); updateText("scheduleTitle", t.scheduleTitle);
+        updateText("schedWelcome", t.schedWelcome); updateText("schedWedding", t.schedWedding); updateText("schedFirstDance", t.schedFirstDance); updateText("schedNational", t.schedNational);
+        updateText("schedSpecial", t.schedSpecial); updateText("schedSaxophone", t.schedSaxophone); updateText("schedPilaw", t.schedPilaw); updateText("schedCake", t.schedCake);
+        updateText("schedDisco", t.schedDisco); updateText("addressTitle", t.addressTitle); updateText("copyAddress", t.copyAddress); updateText("openInMaps", t.direction);
+        updateText("footerTitle", t.footerTitle); updateText("footerSub", t.footerSub);
+      }
+      function initLangSwitcher() {
+        const langAz = document.getElementById("langAz");
+        const langEn = document.getElementById("langEn");
+        if(!langAz || !langEn) { setTimeout(initLangSwitcher, 100); return; }
+        const newAz = langAz.cloneNode(true);
+        const newEn = langEn.cloneNode(true);
+        langAz.parentNode.replaceChild(newAz, langAz);
+        langEn.parentNode.replaceChild(newEn, langEn);
+        newAz.addEventListener("click", function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if(window.WEDDING_APPLY_LANG) { try { window.WEDDING_APPLY_LANG("az"); } catch(e) { applyLangStandalone("az"); } } else { applyLangStandalone("az"); }
+        });
+        newEn.addEventListener("click", function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if(window.WEDDING_APPLY_LANG) { try { window.WEDDING_APPLY_LANG("en"); } catch(e) { applyLangStandalone("en"); } } else { applyLangStandalone("en"); }
+        });
+      }
+      if(document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initLangSwitcher); } else { initLangSwitcher(); }
+    })();
+  </script>
 
+  <!-- COMPLETELY STANDALONE Upload Handler (works even if module fails) -->
+  <script>
+    (function() {
+      'use strict';
+      const SUPABASE_URL = "https://unyfljfhkjjidzdobwjr.supabase.co";
+      const SUPABASE_ANON_KEY = "sb_publishable_sRbCWLDClaoppgdGZuXA8A_wdqXgg18";
+      let supabaseClient = null;
+      (async function() {
+        try {
+          const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
+          supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          window.supabaseStandalone = supabaseClient;
+        } catch(e) { console.error("Failed to load Supabase:", e); }
+      })();
+      function initUploadStandalone() {
+        const uploadBtn = document.getElementById("uploadBtn");
+        if(!uploadBtn) { setTimeout(initUploadStandalone, 500); return; }
+        if(uploadBtn.dataset.standaloneAttached === "true") { return; }
+        uploadBtn.dataset.standaloneAttached = "true";
+        uploadBtn.addEventListener("click", async function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const audioBlob = window.audioBlobForUpload;
+          if(!audioBlob || audioBlob.size === 0) {
+            const hint = document.getElementById("wishHint");
+            if(hint) hint.textContent = "Əvvəl səs yazın.";
+            return;
+          }
+          const supabase = supabaseClient || window.supabaseClient || window.supabaseStandalone;
+          if(!supabase) {
+            alert("Yükləmə hazır deyil. Zəhmət olmasa bir az gözləyin.");
+            return;
+          }
+          uploadBtn.disabled = true;
+          uploadBtn.textContent = "⬆️ Göndərilir…";
+          const hint = document.getElementById("wishHint");
+          if(hint) hint.textContent = "Yüklənir… zəhmət olmasa gözləyin.";
+          try {
+            const name = document.getElementById("wishName")?.value.trim() || "—";
+            const note = document.getElementById("wishNote")?.value.trim() || "";
+            const lang = localStorage.getItem("invite_lang") || "az";
+            const meta = {name:name,note:note,createdAt:new Date().toISOString(),couple:"Orxan & Səkinə",weddingDate:"14 Fevral 2026",venue:"Romance Palace Deluxe",lang:lang};
+            const mimeType = window.audioMimeTypeForUpload || audioBlob.type || "audio/webm";
+            let ext = "webm";
+            if(mimeType.includes("mp4")) ext = "m4a";
+            else if(mimeType.includes("mpeg")) ext = "mp3";
+            const path = `wishes/${new Date().toISOString().slice(0,10)}/${Date.now()}-${name.replace(/[^a-z0-9]/gi, "-").toLowerCase()}.${ext}`;
+            const { data, error } = await supabase.storage.from("wishes").upload(path, audioBlob, {contentType:mimeType,upsert:false,cacheControl:"3600",metadata:meta});
+            if(error) throw error;
+            if(!data) throw new Error("No data");
+            if(hint) hint.innerHTML = "<span style='color: rgba(245,210,124,.95); font-weight:800;'>GÖNDƏRİLDİ ✓</span> Çox sağ olun! 💛";
+            uploadBtn.textContent = "✅ Göndərildi";
+            uploadBtn.disabled = true;
+            setTimeout(function() { const modal = document.getElementById("modalBack"); if(modal) modal.classList.remove("show"); }, 1000);
+          } catch(err) {
+            console.error("Upload error:", err);
+            alert("Göndərmək alınmadı. İnterneti yoxlayın və yenidən cəhd edin.");
+            uploadBtn.textContent = "⬆️ Göndər";
+            uploadBtn.disabled = false;
+          }
+        });
+      }
+      setTimeout(initUploadStandalone, 1000);
+      setTimeout(initUploadStandalone, 2000);
+      if(document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', function() { setTimeout(initUploadStandalone, 500); }); }
+    })();
+  </script>
 
   <script>
     // Auto play / pause videos on scroll + on page load
