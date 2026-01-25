@@ -1047,8 +1047,32 @@
     });
 
     // Countdown
-    const target = new Date(CONFIG.dateISO).getTime();
+    // Parse date in a way that works on iPhone Safari
+    const parseDate = (dateStr) => {
+      // Try ISO format first
+      let date = new Date(dateStr);
+      // If invalid, try parsing manually (for iPhone compatibility)
+      if(isNaN(date.getTime())){
+        const parts = dateStr.split(/[-T:]/);
+        if(parts.length >= 3){
+          // Create date in UTC and convert to local
+          date = new Date(Date.UTC(
+            parseInt(parts[0], 10), // year
+            parseInt(parts[1], 10) - 1, // month (0-indexed)
+            parseInt(parts[2], 10), // day
+            parseInt(parts[3] || 0, 10), // hours
+            parseInt(parts[4] || 0, 10), // minutes
+            parseInt(parts[5] || 0, 10) // seconds
+          ));
+        }
+      }
+      return date;
+    };
+    
+    const targetDate = parseDate(CONFIG.dateISO);
+    const target = targetDate.getTime();
     const pad2 = (n) => String(n).padStart(2, "0");
+    
     function tick(){
       const now = Date.now();
       let diff = Math.max(0, target - now);
@@ -1074,7 +1098,18 @@
         $("countdownSub").textContent = t.countdownDone;
       }
     }
-    tick(); setInterval(tick, 1000);
+    
+    // Initial tick and then every second
+    if(!isNaN(target)){
+      tick();
+      setInterval(tick, 1000);
+    } else {
+      console.error("Invalid target date for countdown");
+      $("cdDays").textContent = "—";
+      $("cdHours").textContent = "—";
+      $("cdMinutes").textContent = "—";
+      $("cdSeconds").textContent = "—";
+    }
 
     // Calendar (.ics)
     function makeICS(){
@@ -1133,6 +1168,7 @@
     let audioChunks = [];
     let audioBlob = null;
     let audioUrl = null;
+    let audioMimeType = "audio/webm"; // Track the MIME type used
     const audioEl = new Audio();
     let bgAudioWasPlaying = false;
 
@@ -1170,6 +1206,7 @@
     async function startRecording(){
       audioChunks = [];
       audioBlob = null;
+      audioMimeType = "audio/webm"; // Reset MIME type
       if(audioUrl) URL.revokeObjectURL(audioUrl);
       audioUrl = null;
 
@@ -1187,17 +1224,58 @@
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
+      
+      // Detect supported MIME type (iPhone Safari compatibility)
+      let mimeType = "audio/webm";
+      const types = ["audio/webm", "audio/webm;codecs=opus", "audio/mp4", "audio/mpeg"];
+      for(const type of types){
+        if(MediaRecorder.isTypeSupported(type)){
+          mimeType = type;
+          break;
+        }
+      }
+      
+      // Fallback for iPhone which might not support webm
+      if(!MediaRecorder.isTypeSupported(mimeType)){
+        mimeType = ""; // Let browser choose
+      }
+      
+      const options = mimeType ? { mimeType } : {};
+      mediaRecorder = new MediaRecorder(stream, options);
 
-      mediaRecorder.ondataavailable = (e) => { if(e.data && e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.ondataavailable = (e) => { 
+        if(e.data && e.data.size > 0) {
+          audioChunks.push(e.data);
+        }
+      };
 
       mediaRecorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
-        audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+        
+        // Determine blob type based on what was recorded
+        audioMimeType = mediaRecorder.mimeType || mimeType || "audio/webm";
+        audioBlob = new Blob(audioChunks, { type: audioMimeType });
+        
+        // Validate blob was created
+        if(!audioBlob || audioBlob.size === 0){
+          const t = I18N[currentLang];
+          wishHint.textContent = (currentLang === "en")
+            ? "Recording failed. Please try again."
+            : "Yazma uğursuz oldu. Zəhmət olmasa yenidən cəhd edin.";
+          playBtn.disabled = true;
+          uploadBtn.disabled = true;
+          return;
+        }
+        
         audioUrl = URL.createObjectURL(audioBlob);
         audioEl.src = audioUrl;
 
-        const filename = `wish-${Date.now()}-${safeSlug($("wishName").value)}.webm`;
+        // Determine file extension based on MIME type
+        let fileExt = "webm";
+        if(audioMimeType.includes("mp4")) fileExt = "m4a";
+        else if(audioMimeType.includes("mpeg")) fileExt = "mp3";
+        
+        const filename = `wish-${Date.now()}-${safeSlug($("wishName").value)}.${fileExt}`;
         downloadAudio.href = audioUrl;
         downloadAudio.download = filename;
 
@@ -1270,6 +1348,14 @@
         return;
       }
 
+      // Validate audio blob size
+      if(audioBlob.size === 0){
+        wishHint.textContent = (currentLang === "en")
+          ? "Audio file is empty. Please record again."
+          : "Səs faylı boşdur. Zəhmət olmasa yenidən yazın.";
+        return;
+      }
+
       uploadBtn.disabled = true;
       uploadBtn.textContent = t.uploading;
       wishHint.textContent = t.hintUploading;
@@ -1278,16 +1364,35 @@
         const meta = buildMeta();
         const path = `wishes/${new Date().toISOString().slice(0,10)}/${Date.now()}-${safeSlug(meta.name)}.webm`;
 
-        const { error } = await supabase.storage
+        // Check if Supabase client is initialized
+        if(!supabase){
+          throw new Error("Supabase client not initialized");
+        }
+
+        // Determine file extension based on MIME type
+        let fileExt = "webm";
+        if(audioMimeType.includes("mp4")) fileExt = "m4a";
+        else if(audioMimeType.includes("mpeg")) fileExt = "mp3";
+        
+        const pathWithExt = `wishes/${new Date().toISOString().slice(0,10)}/${Date.now()}-${safeSlug(meta.name)}.${fileExt}`;
+        
+        const { data, error } = await supabase.storage
           .from(CONFIG.bucket)
-          .upload(path, audioBlob, {
-            contentType: audioBlob.type || "audio/webm",
+          .upload(pathWithExt, audioBlob, {
+            contentType: audioMimeType || audioBlob.type || "audio/webm",
             upsert: false,
             cacheControl: "3600",
             metadata: meta
           });
 
-        if(error) throw error;
+        if(error){
+          console.error("Supabase upload error:", error);
+          throw error;
+        }
+
+        if(!data){
+          throw new Error("No data returned from upload");
+        }
 
         wishHint.innerHTML = t.sent;
         uploadBtn.textContent = t.sentBtn;
@@ -1296,10 +1401,24 @@
         setTimeout(() => { closeModal(); }, 1000);
 
       }catch(err){
-        console.error(err);
-        wishHint.textContent = (currentLang === "en")
+        console.error("Upload error:", err);
+        const errorMessage = err?.message || "";
+        let userMessage = (currentLang === "en")
           ? "Failed to send. Check your internet and try again."
           : "Göndərmək alınmadı. İnterneti yoxlayın və yenidən cəhd edin.";
+        
+        // More specific error messages
+        if(errorMessage.includes("network") || errorMessage.includes("fetch")){
+          userMessage = (currentLang === "en")
+            ? "Network error. Please check your internet connection and try again."
+            : "Şəbəkə xətası. İnternet bağlantınızı yoxlayın və yenidən cəhd edin.";
+        } else if(errorMessage.includes("permission") || errorMessage.includes("403")){
+          userMessage = (currentLang === "en")
+            ? "Permission denied. Please contact support."
+            : "İcazə rədd edildi. Zəhmət olmasa dəstək ilə əlaqə saxlayın.";
+        }
+        
+        wishHint.textContent = userMessage;
         uploadBtn.textContent = t.uploadBtn;
         uploadBtn.disabled = false;
       }
