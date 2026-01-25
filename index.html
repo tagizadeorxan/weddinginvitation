@@ -1046,69 +1046,96 @@
       }
     });
 
-    // Countdown
-    // Parse date in a way that works on iPhone Safari
-    const parseDate = (dateStr) => {
-      // Try ISO format first
-      let date = new Date(dateStr);
-      // If invalid, try parsing manually (for iPhone compatibility)
-      if(isNaN(date.getTime())){
-        const parts = dateStr.split(/[-T:]/);
-        if(parts.length >= 3){
-          // Create date in UTC and convert to local
-          date = new Date(Date.UTC(
-            parseInt(parts[0], 10), // year
-            parseInt(parts[1], 10) - 1, // month (0-indexed)
-            parseInt(parts[2], 10), // day
-            parseInt(parts[3] || 0, 10), // hours
-            parseInt(parts[4] || 0, 10), // minutes
-            parseInt(parts[5] || 0, 10) // seconds
-          ));
-        }
-      }
-      return date;
-    };
-    
-    const targetDate = parseDate(CONFIG.dateISO);
-    const target = targetDate.getTime();
+    // Countdown - iPhone compatible version
     const pad2 = (n) => String(n).padStart(2, "0");
     
+    function parseDateForCountdown(dateStr) {
+      // Parse "2026-02-14T18:00:00" as local time (not UTC)
+      const parts = dateStr.split(/[-T:]/);
+      if(parts.length >= 3) {
+        // Create date in local timezone
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // 0-indexed
+        const day = parseInt(parts[2], 10);
+        const hour = parseInt(parts[3] || 0, 10);
+        const minute = parseInt(parts[4] || 0, 10);
+        const second = parseInt(parts[5] || 0, 10);
+        
+        return new Date(year, month, day, hour, minute, second);
+      }
+      // Fallback to standard parsing
+      return new Date(dateStr);
+    }
+    
+    let target = null;
+    let countdownInterval = null;
+    
+    try {
+      const targetDate = parseDateForCountdown(CONFIG.dateISO);
+      target = targetDate.getTime();
+      
+      if(isNaN(target)) {
+        throw new Error("Invalid date");
+      }
+    } catch(e) {
+      console.error("Countdown date parsing error:", e);
+      // Set a fallback date
+      target = new Date(2026, 1, 14, 18, 0, 0).getTime(); // Feb 14, 2026 18:00 local time
+    }
+    
     function tick(){
-      const now = Date.now();
-      let diff = Math.max(0, target - now);
+      try {
+        const now = Date.now();
+        let diff = Math.max(0, target - now);
 
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      diff -= days * (1000 * 60 * 60 * 24);
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        diff -= days * (1000 * 60 * 60 * 24);
 
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      diff -= hours * (1000 * 60 * 60);
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        diff -= hours * (1000 * 60 * 60);
 
-      const minutes = Math.floor(diff / (1000 * 60));
-      diff -= minutes * (1000 * 60);
+        const minutes = Math.floor(diff / (1000 * 60));
+        diff -= minutes * (1000 * 60);
 
-      const seconds = Math.floor(diff / 1000);
+        const seconds = Math.floor(diff / 1000);
 
-      $("cdDays").textContent = days;
-      $("cdHours").textContent = pad2(hours);
-      $("cdMinutes").textContent = pad2(minutes);
-      $("cdSeconds").textContent = pad2(seconds);
+        const daysEl = document.getElementById("cdDays");
+        const hoursEl = document.getElementById("cdHours");
+        const minutesEl = document.getElementById("cdMinutes");
+        const secondsEl = document.getElementById("cdSeconds");
+        
+        if(daysEl) daysEl.textContent = days;
+        if(hoursEl) hoursEl.textContent = pad2(hours);
+        if(minutesEl) minutesEl.textContent = pad2(minutes);
+        if(secondsEl) secondsEl.textContent = pad2(seconds);
 
-      if(target - now <= 0){
-        const t = I18N[currentLang];
-        $("countdownSub").textContent = t.countdownDone;
+        if(target - now <= 0){
+          const t = I18N[currentLang];
+          const subEl = document.getElementById("countdownSub");
+          if(subEl) subEl.textContent = t.countdownDone;
+          if(countdownInterval) {
+            clearInterval(countdownInterval);
+          }
+        }
+      } catch(e) {
+        console.error("Countdown tick error:", e);
       }
     }
     
-    // Initial tick and then every second
-    if(!isNaN(target)){
-      tick();
-      setInterval(tick, 1000);
+    // Start countdown
+    if(target && !isNaN(target)){
+      tick(); // Run immediately
+      countdownInterval = setInterval(tick, 1000);
     } else {
       console.error("Invalid target date for countdown");
-      $("cdDays").textContent = "—";
-      $("cdHours").textContent = "—";
-      $("cdMinutes").textContent = "—";
-      $("cdSeconds").textContent = "—";
+      const daysEl = document.getElementById("cdDays");
+      const hoursEl = document.getElementById("cdHours");
+      const minutesEl = document.getElementById("cdMinutes");
+      const secondsEl = document.getElementById("cdSeconds");
+      if(daysEl) daysEl.textContent = "—";
+      if(hoursEl) hoursEl.textContent = "—";
+      if(minutesEl) minutesEl.textContent = "—";
+      if(secondsEl) secondsEl.textContent = "—";
     }
 
     // Calendar (.ics)
@@ -1340,89 +1367,96 @@
       }
     });
 
-    uploadBtn.addEventListener("click", async () => {
-      const t = I18N[currentLang];
-
-      if(!audioBlob){
-        wishHint.textContent = t.hintNoAudio;
-        return;
-      }
-
-      // Validate audio blob size
-      if(audioBlob.size === 0){
-        wishHint.textContent = (currentLang === "en")
-          ? "Audio file is empty. Please record again."
-          : "Səs faylı boşdur. Zəhmət olmasa yenidən yazın.";
-        return;
-      }
-
-      uploadBtn.disabled = true;
-      uploadBtn.textContent = t.uploading;
-      wishHint.textContent = t.hintUploading;
-
-      try{
-        const meta = buildMeta();
-        const path = `wishes/${new Date().toISOString().slice(0,10)}/${Date.now()}-${safeSlug(meta.name)}.webm`;
-
-        // Check if Supabase client is initialized
-        if(!supabase){
-          throw new Error("Supabase client not initialized");
-        }
-
-        // Determine file extension based on MIME type
-        let fileExt = "webm";
-        if(audioMimeType.includes("mp4")) fileExt = "m4a";
-        else if(audioMimeType.includes("mpeg")) fileExt = "mp3";
+    // Ensure upload button exists before attaching listener
+    if(uploadBtn) {
+      uploadBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         
-        const pathWithExt = `wishes/${new Date().toISOString().slice(0,10)}/${Date.now()}-${safeSlug(meta.name)}.${fileExt}`;
-        
-        const { data, error } = await supabase.storage
-          .from(CONFIG.bucket)
-          .upload(pathWithExt, audioBlob, {
-            contentType: audioMimeType || audioBlob.type || "audio/webm",
-            upsert: false,
-            cacheControl: "3600",
-            metadata: meta
-          });
+        try {
+          const t = I18N[currentLang];
 
-        if(error){
-          console.error("Supabase upload error:", error);
-          throw error;
+          if(!audioBlob){
+            if(wishHint) wishHint.textContent = t.hintNoAudio;
+            return;
+          }
+
+          // Validate audio blob size
+          if(audioBlob.size === 0){
+            if(wishHint) wishHint.textContent = (currentLang === "en")
+              ? "Audio file is empty. Please record again."
+              : "Səs faylı boşdur. Zəhmət olmasa yenidən yazın.";
+            return;
+          }
+
+          uploadBtn.disabled = true;
+          uploadBtn.textContent = t.uploading;
+          if(wishHint) wishHint.textContent = t.hintUploading;
+
+          // Check if Supabase client is initialized
+          if(!supabase){
+            throw new Error("Supabase client not initialized");
+          }
+
+          const meta = buildMeta();
+          
+          // Determine file extension based on MIME type
+          let fileExt = "webm";
+          if(audioMimeType.includes("mp4")) fileExt = "m4a";
+          else if(audioMimeType.includes("mpeg")) fileExt = "mp3";
+          
+          const path = `wishes/${new Date().toISOString().slice(0,10)}/${Date.now()}-${safeSlug(meta.name)}.${fileExt}`;
+          
+          const { data, error } = await supabase.storage
+            .from(CONFIG.bucket)
+            .upload(path, audioBlob, {
+              contentType: audioMimeType || audioBlob.type || "audio/webm",
+              upsert: false,
+              cacheControl: "3600",
+              metadata: meta
+            });
+
+          if(error){
+            console.error("Supabase upload error:", error);
+            throw error;
+          }
+
+          if(!data){
+            throw new Error("No data returned from upload");
+          }
+
+          if(wishHint) wishHint.innerHTML = t.sent;
+          uploadBtn.textContent = t.sentBtn;
+          uploadBtn.disabled = true;
+
+          setTimeout(() => { closeModal(); }, 1000);
+
+        } catch(err) {
+          console.error("Upload error:", err);
+          const errorMessage = err?.message || "";
+          let userMessage = (currentLang === "en")
+            ? "Failed to send. Check your internet and try again."
+            : "Göndərmək alınmadı. İnterneti yoxlayın və yenidən cəhd edin.";
+          
+          // More specific error messages
+          if(errorMessage.includes("network") || errorMessage.includes("fetch")){
+            userMessage = (currentLang === "en")
+              ? "Network error. Please check your internet connection and try again."
+              : "Şəbəkə xətası. İnternet bağlantınızı yoxlayın və yenidən cəhd edin.";
+          } else if(errorMessage.includes("permission") || errorMessage.includes("403")){
+            userMessage = (currentLang === "en")
+              ? "Permission denied. Please contact support."
+              : "İcazə rədd edildi. Zəhmət olmasa dəstək ilə əlaqə saxlayın.";
+          }
+          
+          if(wishHint) wishHint.textContent = userMessage;
+          uploadBtn.textContent = t.uploadBtn;
+          uploadBtn.disabled = false;
         }
-
-        if(!data){
-          throw new Error("No data returned from upload");
-        }
-
-        wishHint.innerHTML = t.sent;
-        uploadBtn.textContent = t.sentBtn;
-        uploadBtn.disabled = true;
-
-        setTimeout(() => { closeModal(); }, 1000);
-
-      }catch(err){
-        console.error("Upload error:", err);
-        const errorMessage = err?.message || "";
-        let userMessage = (currentLang === "en")
-          ? "Failed to send. Check your internet and try again."
-          : "Göndərmək alınmadı. İnterneti yoxlayın və yenidən cəhd edin.";
-        
-        // More specific error messages
-        if(errorMessage.includes("network") || errorMessage.includes("fetch")){
-          userMessage = (currentLang === "en")
-            ? "Network error. Please check your internet connection and try again."
-            : "Şəbəkə xətası. İnternet bağlantınızı yoxlayın və yenidən cəhd edin.";
-        } else if(errorMessage.includes("permission") || errorMessage.includes("403")){
-          userMessage = (currentLang === "en")
-            ? "Permission denied. Please contact support."
-            : "İcazə rədd edildi. Zəhmət olmasa dəstək ilə əlaqə saxlayın.";
-        }
-        
-        wishHint.textContent = userMessage;
-        uploadBtn.textContent = t.uploadBtn;
-        uploadBtn.disabled = false;
-      }
-    });
+      });
+    } else {
+      console.error("Upload button not found");
+    }
   </script>
 
   <script>
