@@ -1601,60 +1601,53 @@
       'use strict';
       const SUPABASE_URL = "https://unyfljfhkjjidzdobwjr.supabase.co";
       const SUPABASE_ANON_KEY = "sb_publishable_sRbCWLDClaoppgdGZuXA8A_wdqXgg18";
-      let supabaseClient = null;
-      let supabaseLoading = false;
-      let supabaseReady = false;
       
-      // Load Supabase immediately
-      (async function() {
-        if(supabaseLoading) return;
-        supabaseLoading = true;
-        try {
-          const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
-          supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-          window.supabaseStandalone = supabaseClient;
-          supabaseReady = true;
-          console.log("Supabase loaded successfully");
-        } catch(e) {
-          console.error("Failed to load Supabase:", e);
-          supabaseLoading = false;
-          // Retry after 2 seconds
-          setTimeout(function() {
-            supabaseLoading = false;
-            const script = document.createElement('script');
-            script.type = 'module';
-            script.textContent = `
-              import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-              window.supabaseStandalone = createClient("${SUPABASE_URL}", "${SUPABASE_ANON_KEY}");
-              window.supabaseReady = true;
-            `;
-            document.head.appendChild(script);
-          }, 2000);
+      // Direct upload using fetch API (no Supabase client needed)
+      async function uploadAudioDirect(audioBlob, mimeType, meta) {
+        const ext = mimeType.includes("mp4") ? "m4a" : mimeType.includes("webm") ? "webm" : "m4a";
+        const fileName = `${Date.now()}-${meta.name.replace(/[^a-z0-9]/gi, "-").toLowerCase()}.${ext}`;
+        const filePath = `${new Date().toISOString().slice(0,10)}/${fileName}`;
+        const url = `${SUPABASE_URL}/storage/v1/object/wishes/${filePath}`;
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY,
+            'x-upsert': 'false',
+            'Content-Type': mimeType,
+            'Cache-Control': '3600'
+          },
+          body: audioBlob
+        });
+        
+        if(!response.ok) {
+          const errorText = await response.text();
+          let errorMsg = 'Upload failed';
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMsg = errorJson.message || errorJson.error || errorText;
+          } catch(e) {
+            errorMsg = errorText || 'Upload failed';
+          }
+          throw new Error(errorMsg);
         }
-      })();
-      
-      async function getSupabaseClient() {
-        // Try multiple sources
-        if(supabaseClient) return supabaseClient;
-        if(window.supabaseClient) return window.supabaseClient;
-        if(window.supabaseStandalone) return window.supabaseStandalone;
         
-        // Wait a bit and retry
-        await new Promise(resolve => setTimeout(resolve, 500));
-        if(supabaseClient) return supabaseClient;
-        if(window.supabaseClient) return window.supabaseClient;
-        if(window.supabaseStandalone) return window.supabaseStandalone;
-        
-        return null;
+        return await response.json();
       }
       
       function initUploadStandalone() {
         const uploadBtn = document.getElementById("uploadBtn");
-        if(!uploadBtn) { setTimeout(initUploadStandalone, 500); return; }
-        if(uploadBtn.dataset.standaloneAttached === "true") { return; }
-        uploadBtn.dataset.standaloneAttached = "true";
+        if(!uploadBtn) {
+          setTimeout(initUploadStandalone, 500);
+          return;
+        }
         
-        uploadBtn.onclick = async function(e) {
+        // Always reattach
+        const newUploadBtn = uploadBtn.cloneNode(true);
+        uploadBtn.parentNode.replaceChild(newUploadBtn, uploadBtn);
+        
+        newUploadBtn.onclick = async function(e) {
           e.preventDefault();
           e.stopPropagation();
           e.stopImmediatePropagation();
@@ -1666,20 +1659,8 @@
             return false;
           }
           
-          // Wait for Supabase to be ready
-          let supabase = await getSupabaseClient();
-          if(!supabase) {
-            // Try one more time
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            supabase = await getSupabaseClient();
-          }
-          
-          if(!supabase) {
-            alert("Yükləmə hazır deyil. Zəhmət olmasa bir az gözləyin və yenidən cəhd edin.");
-            return false;
-          }
-          uploadBtn.disabled = true;
-          uploadBtn.textContent = "⬆️ Göndərilir…";
+          newUploadBtn.disabled = true;
+          newUploadBtn.textContent = "⬆️ Göndərilir…";
           const hint = document.getElementById("wishHint");
           if(hint) hint.textContent = "Yüklənir… zəhmət olmasa gözləyin.";
           
@@ -1687,34 +1668,56 @@
             const name = document.getElementById("wishName")?.value.trim() || "—";
             const note = document.getElementById("wishNote")?.value.trim() || "";
             const lang = localStorage.getItem("invite_lang") || "az";
-            const meta = {name:name,note:note,createdAt:new Date().toISOString(),couple:"Orxan & Səkinə",weddingDate:"14 Fevral 2026",venue:"Romance Palace Deluxe",lang:lang};
+            const meta = {
+              name: name,
+              note: note,
+              createdAt: new Date().toISOString(),
+              couple: "Orxan & Səkinə",
+              weddingDate: "14 Fevral 2026",
+              venue: "Romance Palace Deluxe",
+              lang: lang
+            };
+            
             const mimeType = window.audioMimeTypeForUpload || audioBlob.type || "audio/mp4";
-            let ext = "m4a";
-            if(mimeType.includes("webm")) ext = "webm";
-            else if(mimeType.includes("mpeg")) ext = "mp3";
-            const path = `wishes/${new Date().toISOString().slice(0,10)}/${Date.now()}-${name.replace(/[^a-z0-9]/gi, "-").toLowerCase()}.${ext}`;
             
-            const { data, error } = await supabase.storage.from("wishes").upload(path, audioBlob, {
-              contentType: mimeType,
-              upsert: false,
-              cacheControl: "3600",
-              metadata: meta
-            });
+            // Try Supabase client first, then fallback to direct upload
+            let success = false;
             
-            if(error) {
-              console.error("Supabase upload error:", error);
-              throw error;
+            // Try window supabase clients
+            const supabase = window.supabaseClient || window.supabaseStandalone;
+            if(supabase && supabase.storage) {
+              try {
+                const ext = mimeType.includes("mp4") ? "m4a" : mimeType.includes("webm") ? "webm" : "m4a";
+                const path = `wishes/${new Date().toISOString().slice(0,10)}/${Date.now()}-${name.replace(/[^a-z0-9]/gi, "-").toLowerCase()}.${ext}`;
+                const { data, error } = await supabase.storage.from("wishes").upload(path, audioBlob, {
+                  contentType: mimeType,
+                  upsert: false,
+                  cacheControl: "3600",
+                  metadata: meta
+                });
+                if(error) throw error;
+                if(data) success = true;
+              } catch(e) {
+                console.log("Supabase client upload failed, trying direct:", e);
+              }
             }
-            if(!data) throw new Error("No data returned");
             
-            if(hint) hint.innerHTML = "<span style='color: rgba(245,210,124,.95); font-weight:800;'>GÖNDƏRİLDİ ✓</span> Çox sağ olun! 💛";
-            uploadBtn.textContent = "✅ Göndərildi";
-            uploadBtn.disabled = true;
+            // Fallback to direct upload
+            if(!success) {
+              await uploadAudioDirect(audioBlob, mimeType, meta);
+              success = true;
+            }
             
-            setTimeout(function() {
-              const modal = document.getElementById("modalBack");
-              if(modal) modal.classList.remove("show");
-            }, 1000);
+            if(success) {
+              if(hint) hint.innerHTML = "<span style='color: rgba(245,210,124,.95); font-weight:800;'>GÖNDƏRİLDİ ✓</span> Çox sağ olun! 💛";
+              newUploadBtn.textContent = "✅ Göndərildi";
+              newUploadBtn.disabled = true;
+              
+              setTimeout(function() {
+                const modal = document.getElementById("modalBack");
+                if(modal) modal.classList.remove("show");
+              }, 1000);
+            }
             
           } catch(err) {
             console.error("Upload error:", err);
@@ -1724,13 +1727,14 @@
               userMsg = "Şəbəkə xətası. İnternet bağlantınızı yoxlayın.";
             }
             alert(userMsg);
-            uploadBtn.textContent = "⬆️ Göndər";
-            uploadBtn.disabled = false;
+            newUploadBtn.textContent = "⬆️ Göndər";
+            newUploadBtn.disabled = false;
           }
           
           return false;
         };
       }
+      
       setTimeout(initUploadStandalone, 1000);
       setTimeout(initUploadStandalone, 2000);
       if(document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', function() { setTimeout(initUploadStandalone, 500); }); }
