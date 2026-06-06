@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checkout — Wedding Invitation Source Code</title>
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"></div>
+
+  <div class="wrap">
+    <header class="site-header">
+      <a class="logo" href="/">💍 Wedding Invite Kit</a>
+      <div class="badge"><span class="dot"></span> Secure checkout</div>
+    </header>
+
+    <section class="section">
+      <h2>Checkout</h2>
+
+      <div class="checkout-layout">
+        <div>
+          <div class="order-summary" id="orderSummary">
+            <strong>Wedding Invitation — Full Source Code</strong><br />
+            One-time purchase. Lifetime use for your projects.
+          </div>
+
+          <div class="field" style="margin-top: 20px">
+            <label for="email">Email for receipt &amp; download</label>
+            <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required />
+          </div>
+
+          <p class="status" id="checkoutStatus">Enter your email, then complete payment below.</p>
+        </div>
+
+        <div>
+          <div id="cards-container">
+            <p style="color: var(--muted); font-size: 14px; margin: 0;">
+              Loading payment form…
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer-note">
+      <a href="/">← Back to product page</a>
+    </p>
+  </div>
+
+  <script type="module" src="/src/checkout.js"></script>
+</body>
+</html>
