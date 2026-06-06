@@ -1,10 +1,13 @@
 import { resolve } from "path";
 import { defineConfig } from "vite";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   root: ".",
+  base: mode === "pages" ? "/weddinginvitation/" : "/",
+  publicDir: "public",
   build: {
-    outDir: "dist",
+    outDir: mode === "pages" ? "../docs" : "dist",
+    emptyOutDir: mode === "pages",
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
@@ -22,4 +25,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

@@ -286,3 +286,27 @@ h1 {
   font-size: 13px;
   color: var(--faint);
 }
+
+.preview-note {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.preview-video-wrap {
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  background: #000;
+  margin-bottom: 16px;
+}
+
+.preview-video {
+  width: 100%;
+  max-height: 520px;
+  display: block;
+  background: #111;
+}
+

@@ -1,0 +1,30 @@
+# Wedding invitation SOURCE — local only, sold after Payoneer payment
+local-product/
+
+# Legacy root paths (if files still exist outside local-product/)
+/index.html
+/music.mp3
+/preview.png
+/wedding_image.png
+/wedding_video.mp4
+
+# Secrets
+.env
+.env.*
+!.env.example
+store/.env
+
+# Dependencies & dev build
+node_modules/
+store/node_modules/
+store/dist/
+
+# Keep docs/ committed for GitHub Pages (built via: cd store && npm run build:pages)
+
+# Paid zip — server-only, never on GitHub
+store/downloads/*.zip
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log

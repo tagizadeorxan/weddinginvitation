@@ -5,12 +5,20 @@ import { dirname } from "path";
 import archiver from "archiver";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const repoRoot = join(__dirname, "..", "..");
+const productDir = join(__dirname, "..", "..", "local-product");
 const outFile = join(__dirname, "..", "downloads", "wedding-invitation-source.zip");
+
+if (!existsSync(join(productDir, "index.html"))) {
+  console.error(
+    "Missing local-product/index.html — keep the wedding invitation source in local-product/ (not on GitHub)."
+  );
+  process.exit(1);
+}
 
 const includeFiles = [
   "index.html",
   "preview.png",
+  "wedding_image.png",
   "wedding_video.mp4",
   "music.mp3",
 ];
@@ -35,7 +43,7 @@ archive.on("error", (err) => {
 archive.pipe(output);
 
 for (const file of includeFiles) {
-  addToArchive(archive, join(repoRoot, file), file);
+  addToArchive(archive, join(productDir, file), file);
 }
 
 archive.append(

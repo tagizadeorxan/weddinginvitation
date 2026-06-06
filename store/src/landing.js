@@ -15,10 +15,6 @@ async function loadProduct() {
       descEl.textContent = product.description;
     }
 
-    const demoLink = document.getElementById("demoLink");
-    if (demoLink && product.demoUrl) {
-      demoLink.href = product.demoUrl;
-    }
   } catch {
     // Static fallback values are fine
   }

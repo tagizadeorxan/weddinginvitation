@@ -8,6 +8,7 @@
     "dev:client": "vite",
     "dev:server": "node --watch server/index.js",
     "build": "vite build",
+    "build:pages": "vite build --mode pages && node scripts/copy-assets.mjs",
     "preview": "vite preview",
     "start": "node server/index.js",
     "package-source": "node scripts/package-source.mjs"

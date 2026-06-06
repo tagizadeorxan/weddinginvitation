@@ -55,7 +55,6 @@ app.get("/api/product", (_req, res) => {
       "Beautiful mobile-first wedding invitation template with countdown, map, audio wishes, bilingual support, and Supabase integration.",
     price: PRODUCT_PRICE,
     currency: PRODUCT_CURRENCY,
-    demoUrl: "https://tagizadeorxan.github.io/weddinginvitation/",
   });
 });
 
