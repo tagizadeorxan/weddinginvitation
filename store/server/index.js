@@ -18,7 +18,7 @@ const SITE_URL = process.env.SITE_URL || `http://localhost:${PORT}`;
 const PAYONEER_ENV = process.env.PAYONEER_ENV || "test";
 const MERCHANT_CODE = process.env.PAYONEER_MERCHANT_CODE || "";
 const PAYMENT_TOKEN = process.env.PAYONEER_PAYMENT_TOKEN || "";
-const PRODUCT_PRICE = Number(process.env.PRODUCT_PRICE) || 49;
+const PRODUCT_PRICE = Number(process.env.PRODUCT_PRICE) || 14;
 const PRODUCT_CURRENCY = process.env.PRODUCT_CURRENCY || "USD";
 const PRODUCT_COUNTRY = process.env.PRODUCT_COUNTRY || "US";
 
